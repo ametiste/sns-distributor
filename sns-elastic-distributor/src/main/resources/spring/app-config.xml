@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:int="http://www.springframework.org/schema/integration"
+       xmlns:int-http="http://www.springframework.org/schema/integration/http"
+       xmlns:elasticsearch="http://www.springframework.org/schema/data/elasticsearch"
+       xsi:schemaLocation="
+       http://www.springframework.org/schema/data/elasticsearch http://www.springframework.org/schema/data/elasticsearch/spring-elasticsearch.xsd
+       http://www.springframework.org/schema/integration/http http://www.springframework.org/schema/integration/http/spring-integration-http.xsd
+       		http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		">
+
+
+    <int-http:inbound-gateway   request-channel="webRequests"
+                                reply-channel="webReplies"
+                                supported-methods="POST"
+                                path="/"
+                                request-payload-type="org.ametiste.notification.dto.ReportDTO"
+                                payload-expression="T(org.ametiste.notification.dto.Assembler).assemble(body)"
+            />
+
+
+    <int-http:inbound-gateway   request-channel="webTestRequests"
+                                reply-channel="webTestReplies"
+                                supported-methods="POST"
+                                path="/test"
+                                payload-expression="T(org.ametiste.notification.dto.Assembler).randomAssemble()"
+            />
+
+    <int-http:inbound-gateway   request-channel="webStatRequests"
+                                reply-channel="webStatReplies"
+                                supported-methods="GET"
+                                path="/stat"
+            />
+
+
+    <int-http:inbound-gateway   request-channel="webFailsRequests"
+                                reply-channel="webFailsReplies"
+                                supported-methods="GET"
+                                path="/fails"
+                                payload-expression="'*'"
+            />
+
+
+    <int-http:inbound-gateway   request-channel="webFailsRequests"
+                                reply-channel="webFailsReplies"
+                                supported-methods="GET"
+                                path="/fails/{errorName}"
+                                payload-expression="#pathVariables.errorName"
+            />
+
+    <int:service-activator input-channel="webFailsRequests"  output-channel="webFailsReplies" ref="elasticClient"
+                           method="dump"/>
+
+    <int:service-activator input-channel="webStatRequests"  output-channel="webStatReplies" ref="elasticClient"
+                           method="stats"/>
+
+
+    <int:service-activator input-channel="webTestRequests"  output-channel="webTestReplies" ref="elasticClient"
+                           method="testSend"/>
+
+    <int:channel id="webRequests" >
+        <int:interceptors>
+            <int:wire-tap channel="replies"/>
+        </int:interceptors>
+
+    </int:channel>
+
+    <int:channel id="webReplies" />
+    <int:channel id="suroRequests">
+        <int:dispatcher task-executor="elasticClientExec"/>
+    </int:channel>
+    <int:channel id="webTestReplies"/>
+    <int:channel id="webStatReplies"/>
+    <int:channel id="webFailsReplies"/>
+
+    <int:bridge input-channel="webRequests" output-channel="snsRequests"/>
+    <int:transformer input-channel="replies" output-channel="webReplies" expression="''"/>
+
+    <int:service-activator input-channel="snsRequests" ref="elasticClient" method="send"/>
+
+
+    <bean id="elasticClient" class="org.ametiste.notification.elastic.SNSElasticClient" >
+        <constructor-arg name="client" ref="elasticsearchClient"/>
+        <constructor-arg name="requestTimeoutInMs" value="${org.ametiste.sns.elastic.client.request.timeout:1000}"/>
+        <constructor-arg name="policy" ref="renamingPolicy" />
+     </bean>
+
+    <!-- if to name elasticsearchClient with other id, there are 2 bitches created, thx to spring data... This is easiest way to solve it,
+    however there should be better one -->
+    <elasticsearch:transport-client id="elasticsearchClient"
+                                    cluster-nodes="${org.ametiste.sns.elastic.client.addresses:#{defaultAddress}}" />
+
+    <!-- defaultAddress bean is made because placeholder doesnt consider a colon as part of default value, and its not advised
+    to separate host and port for different values cause cluster-node property can accept value for several nodes.
+    For example, property com.dph.sns.elastic.client.addresses replacing default can look like:
+    com.dph.sns.elastic.client.addresses=host1:9300,host2:9300
+    -->
+
+    <bean id="defaultAddress" class="java.lang.String">
+        <constructor-arg value="localhost:9300"/>
+    </bean>
+
+    <bean id="elasticClientExec" class="org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor" >
+        <property name="maxPoolSize" value="${org.ametiste.sns.elastic.executor.max.pool.size:2}" />
+    </bean>
+    <bean id="renamingPolicy" class="org.ametiste.notification.elastic.preprocess.FieldRenamingPolicy">
+        <constructor-arg>
+            <list>
+                <bean class="org.ametiste.notification.elastic.preprocess.RenameRule">
+                    <constructor-arg name="expression" value="content.*query"/>
+                    <constructor-arg name="replacement" value="queryString" />
+                    <constructor-arg name="condition" >
+                        <bean class="org.ametiste.notification.elastic.condition.ValueTypeRenameCondition">
+                            <constructor-arg name="type" value="java.lang.String"/>
+                        </bean>
+                    </constructor-arg>
+                </bean>
+            </list>
+
+        </constructor-arg>
+    </bean>
+
+</beans>

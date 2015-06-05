@@ -1,0 +1,58 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+    }
+}
+
+apply plugin: 'spring-boot'
+
+dependencies {
+
+    compile("org.elasticsearch:elasticsearch:1.5.2")
+    compile("org.springframework.data:spring-data-elasticsearch")
+
+    compile("com.google.guava:guava:18.0") //for evicting queue for dump
+
+
+    compile("org.springframework.boot:spring-boot-starter-web") {
+        exclude module: "spring-boot-starter-tomcat"
+    }
+
+    compile("org.springframework.boot:spring-boot-starter-jetty")
+    // end::jetty[]
+    // tag::actuator[]
+    compile("org.springframework.boot:spring-boot-starter-actuator")
+    // end::actuator[]
+
+    compile ("org.springframework.integration:spring-integration-http")
+    compile ("com.fasterxml.jackson.core:jackson-databind")
+
+    testCompile group: 'junit', name: 'junit', version: '4.11'
+
+}
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            pom {
+                project {
+                    dependencyManagement {
+                        dependencies {
+                            dependency {
+                                groupId "org.springframework.boot"
+                                artifactId "spring-boot-dependencies"
+                                version "${springBootVersion}"
+                                type "pom"
+                                scope "import"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+uploadArchives.dependsOn build
