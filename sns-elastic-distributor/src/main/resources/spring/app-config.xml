@@ -89,7 +89,7 @@
 
     <!-- if to name elasticsearchClient with other id, there are 2 bitches created, thx to spring data... This is easiest way to solve it,
     however there should be better one -->
-    <elasticsearch:transport-client id="elasticsearchClient"
+    <elasticsearch:transport-client id="elasticsearchClient" cluster-name="${org.ametiste.sns.elastic.cluster.name:elasticsearch}"
                                     cluster-nodes="${org.ametiste.sns.elastic.client.addresses:#{defaultAddress}}" />
 
     <!-- defaultAddress bean is made because placeholder doesnt consider a colon as part of default value, and its not advised
