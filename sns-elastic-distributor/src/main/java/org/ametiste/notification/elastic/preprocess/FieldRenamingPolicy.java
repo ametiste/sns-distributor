@@ -41,7 +41,7 @@ public class FieldRenamingPolicy  implements ReportNamingPolicy{
                 throw new IllegalArgumentException();
             }
             else {
-                if(map.containsKey(expressionParts[0]) && Map.class.isAssignableFrom(map.get(expressionParts[0]).getClass())) {
+                if(map.containsKey(expressionParts[0]) && (map.get(expressionParts[0]) instanceof Map)) {
                     Map<String, Object> applied = new HashMap<>(map);
                     applied.put(expressionParts[0], applyRule(expressionParts[1], replacement, condition, (Map<String, Object>) map.get(expressionParts[0])));
                     return applied;
@@ -77,7 +77,7 @@ public class FieldRenamingPolicy  implements ReportNamingPolicy{
             }
 
             Object value = entry.getValue();
-            if(Map.class.isAssignableFrom(entry.getValue().getClass())) {
+            if(entry.getValue() instanceof Map) {
                 value = applyDeep((Map<String, Object>) entry.getValue(),replaced, replacement, condition );
             }
             applied.put(key, value);
