@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:int="http://www.springframework.org/schema/integration"
+       xmlns:int-http="http://www.springframework.org/schema/integration/http"
+       xsi:schemaLocation="
+       http://www.springframework.org/schema/integration/http http://www.springframework.org/schema/integration/http/spring-integration-http.xsd
+       		http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		">
+
+
+    <int-http:inbound-gateway   request-channel="sweeperRequests"
+                                reply-channel="sweeperReplies"
+                                supported-methods="GET"
+                                path="/sweeper/"
+            />
+
+
+    <int-http:inbound-gateway   request-channel="sweeperIndexRequests"
+                                reply-channel="sweeperIndexReplies"
+                                supported-methods="GET"
+                                path="/sweeper/{index}"
+                                payload-expression="#pathVariables.index"
+            />
+
+    <int-http:inbound-channel-adapter channel="sweeperIndexDeleteRequests"
+                                supported-methods="DELETE"
+                                path="/sweeper/{index}"
+                                payload-expression="#pathVariables.index"
+            />
+
+    <int-http:inbound-gateway   request-channel="sweeperConfigRequests"
+                                reply-channel="sweeperConfigReplies"
+                                supported-methods="GET"
+                                path="/sweeper/config"
+            />
+
+    <int-http:inbound-channel-adapter channel="sweeperConfigUpdateRequests"
+                                supported-methods="POST"
+                                request-payload-type="java.util.Map"
+                                path="/sweeper/config"
+            />
+
+    <int-http:inbound-gateway   request-channel="sweeperLogRequests"
+                                reply-channel="sweeperLogReplies"
+                                supported-methods="GET"
+                                path="/sweeper/logs"
+            />
+
+    <int-http:inbound-gateway   request-channel="sweeperLogFilterRequests"
+                                reply-channel="sweeperLogReplies"
+                                supported-methods="GET"
+                                path="/sweeper/logs/{sweepMethod}"
+                                payload-expression="#pathVariables.sweepMethod"
+            />
+
+    <int:channel id="sweeperReplies"/>
+    <int:channel id="sweeperRequests"/>
+    <int:channel id="sweeperIndexReplies"/>
+    <int:channel id="sweeperIndexRequests"/>
+    <int:channel id="sweeperIndexDeleteRequests"/>
+
+    <int:channel id="sweeperLogRawReplies"/>
+    <int:channel id="sweeperLogReplies"/>
+    <int:channel id="sweeperLogRequests"/>
+    <int:channel id="sweeperLogFilterRequests"/>
+    <int:channel id="sweeperConfigReplies"/>
+    <int:channel id="sweeperConfigRequests"/>
+    <int:channel id="sweeperConfigUpdateRequests"/>
+
+    <int:service-activator input-channel="sweeperLogRequests" output-channel="sweeperLogRawReplies" ref="sweepLogger" method="listLogs" />
+    <int:service-activator input-channel="sweeperLogFilterRequests" output-channel="sweeperLogRawReplies" ref="sweepLogger" method="listLogsBy" />
+    <int:service-activator input-channel="sweeperConfigRequests" output-channel="sweeperConfigReplies" ref="sweepConfigurer" method="loadAll" />
+    <int:service-activator input-channel="sweeperConfigUpdateRequests" ref="sweepConfigurer" method="update" />
+    <int:service-activator input-channel="sweeperRequests" output-channel="sweeperUnreadReplies" ref="elasticConnector" method="stats" />
+    <int:service-activator input-channel="sweeperIndexRequests" output-channel="sweeperIndexUnreadReplies" ref="elasticConnector" method="statsByName" />
+    <int:service-activator input-channel="sweeperIndexDeleteRequests" ref="sweeper" method="deleteByName" />
+
+    <int:transformer input-channel="sweeperUnreadReplies" output-channel="sweeperReplies"
+                     expression="new org.ametiste.notification.sweeper.interfaces.dto.IndicesStatDTO(payload, @indexNameComparator)"/>
+
+    <int:transformer input-channel="sweeperIndexUnreadReplies" output-channel="sweeperIndexReplies"
+                     expression="new org.ametiste.notification.sweeper.interfaces.dto.IndexStatDTO(payload)"/>
+
+
+    <int:transformer input-channel="sweeperLogRawReplies" output-channel="sweeperLogReplies"
+                     expression="T(org.ametiste.notification.sweeper.interfaces.dto.SweepLogAssembler).assemble(payload)" />
+
+    <bean id="sweepLogger" class="org.ametiste.notification.sweeper.application.logger.InMemSweepLogger" />
+
+    <bean id="sweepConfigurer" class="org.ametiste.notification.sweeper.application.configurer.InMemSweepConfigurer">
+        <constructor-arg>
+            <map>
+                <entry key="sweepPeriod" value-ref="sweepPeriod"/>
+                <entry key="capacity" value-ref="capacity"/>
+            </map>
+        </constructor-arg>
+    </bean>
+
+    <bean id="elasticConnector" class="org.ametiste.notification.sweeper.application.connector.ClientElasticConnector">
+        <constructor-arg name="client" ref="elasticsearchClient"/>
+        <constructor-arg name="indexPrefix" ref="indexPrefix" />
+    </bean>
+
+
+    <bean id="sweepPeriod" class="java.lang.Long">
+        <constructor-arg value="1" />
+    </bean>
+
+    <bean id="capacity" class="java.lang.Long">
+        <constructor-arg value="15" />
+    </bean>
+
+    <bean id="indexNameComparator" class="org.ametiste.notification.sweeper.application.runner.IndexDescNameComparator"/>
+
+
+    <bean id="sweeper" class="org.ametiste.notification.sweeper.application.runner.ExecutorSweeper" init-method="init" depends-on="sweepConfigurer">
+        <constructor-arg name="comparator" ref="indexNameComparator" />
+        <constructor-arg name="configurer" ref="sweepConfigurer" />
+        <constructor-arg name="connector" ref="elasticConnector"/>
+        <constructor-arg name="logger" ref="sweepLogger" />
+        <constructor-arg name="executor" ref="sweepExecutor" />
+    </bean>
+
+    <bean id="sweepExecutor" class="java.util.concurrent.ScheduledThreadPoolExecutor">
+        <constructor-arg value="1"/>
+    </bean>
+
+</beans>

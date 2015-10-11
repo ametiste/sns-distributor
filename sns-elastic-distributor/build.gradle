@@ -11,6 +11,8 @@ apply plugin: 'spring-boot'
 
 dependencies {
 
+    compile project(":sns-elastic-sweeper")
+
     compile("org.elasticsearch:elasticsearch:1.5.2")
     compile("org.springframework.data:spring-data-elasticsearch")
 
@@ -31,6 +33,12 @@ dependencies {
     compile ("com.fasterxml.jackson.core:jackson-databind")
 
     testCompile group: 'junit', name: 'junit', version: '4.11'
+
+    testCompile ("org.springframework:spring-test") {
+        exclude group: 'org.hamcrest'
+    }
+
+    testCompile "com.jayway.jsonpath:json-path"
 
 }
 

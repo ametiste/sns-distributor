@@ -12,6 +12,8 @@
 		">
 
 
+    <import resource="sns-sweeper-config.xml" />
+
     <int-http:inbound-gateway   request-channel="webRequests"
                                 reply-channel="webReplies"
                                 supported-methods="POST"
@@ -80,12 +82,17 @@
 
     <int:service-activator input-channel="snsRequests" ref="elasticClient" method="send"/>
 
-
-    <bean id="elasticClient" class="org.ametiste.notification.elastic.SNSElasticClient" >
+    <bean id="snsProcessor" class="org.ametiste.notification.elastic.ElasticProcessor">
         <constructor-arg name="client" ref="elasticsearchClient"/>
         <constructor-arg name="requestTimeoutInMs" value="${org.ametiste.sns.elastic.client.request.timeout:1000}"/>
+    </bean>
+
+    <bean id="elasticClient" class="org.ametiste.notification.elastic.SNSClient" >
+        <constructor-arg name="client" ref="snsProcessor"/>
         <constructor-arg name="policy" ref="renamingPolicy" />
-     </bean>
+        <constructor-arg name="reportPrefix" ref="indexPrefix" />
+    </bean>
+
 
     <!-- if to name elasticsearchClient with other id, there are 2 bitches created, thx to spring data... This is easiest way to solve it,
     however there should be better one -->
@@ -120,6 +127,10 @@
             </list>
 
         </constructor-arg>
+    </bean>
+
+    <bean id="indexPrefix" class="java.lang.String">
+        <constructor-arg value="${org.ametiste.sns.elastic.client.indices.prefix:reports}" />
     </bean>
 
 </beans>

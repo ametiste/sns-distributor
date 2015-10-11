@@ -15,9 +15,6 @@ public class ValueTypeRenameCondition implements RenameCondition {
     }
 
     public boolean renameRequired(Object object) {
-        if(object!=null && type.equals(object.getClass())) {
-           return true;
-        }
-        return false;
+        return object != null && type.equals(object.getClass());
     }
 }

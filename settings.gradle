@@ -1,3 +1,4 @@
 rootProject.name = 'sns-distributor'
 include 'sns-elastic-distributor'
+include 'sns-elastic-sweeper'
 
