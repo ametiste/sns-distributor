@@ -10,10 +10,7 @@ buildscript {
 apply plugin: 'spring-boot'
 
 dependencies {
-
-    compile("org.elasticsearch:elasticsearch:1.5.2")
-    compile("org.springframework.data:spring-data-elasticsearch")
-    compile ("org.springframework.integration:spring-integration-http")
+    compile("org.elasticsearch:elasticsearch:${elasticsearchVersion}")
+    compile("org.springframework.integration:spring-integration-http")
     compile("commons-io:commons-io:2.4")
-
 }
