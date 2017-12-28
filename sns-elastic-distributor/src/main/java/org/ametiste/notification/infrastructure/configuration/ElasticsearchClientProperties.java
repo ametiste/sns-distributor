@@ -49,7 +49,7 @@ public class ElasticsearchClientProperties {
 
         private String addresses = "127.0.0.1:9300";
 
-        private Boolean transportSniff = Boolean.TRUE;
+        private Boolean transportSniff = Boolean.FALSE;
 
         private Boolean ignoreClusterName = Boolean.FALSE;
 
