@@ -3,14 +3,13 @@
        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
        xmlns:int="http://www.springframework.org/schema/integration"
        xmlns:int-http="http://www.springframework.org/schema/integration/http"
-       xmlns:elasticsearch="http://www.springframework.org/schema/data/elasticsearch"
-       xsi:schemaLocation="
-       http://www.springframework.org/schema/data/elasticsearch http://www.springframework.org/schema/data/elasticsearch/spring-elasticsearch.xsd
-       http://www.springframework.org/schema/integration/http http://www.springframework.org/schema/integration/http/spring-integration-http.xsd
+       xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="http://www.springframework.org/schema/integration/http http://www.springframework.org/schema/integration/http/spring-integration-http.xsd
        		http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration.xsd
-		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
-		">
+		    http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd">
 
+    <context:annotation-config/>
+    <bean class="org.ametiste.notification.infrastructure.configuration.ElasticsearchClientConfiguration"/>
 
     <import resource="sns-sweeper-config.xml" />
 
@@ -91,22 +90,6 @@
         <constructor-arg name="client" ref="snsProcessor"/>
         <constructor-arg name="policy" ref="renamingPolicy" />
         <constructor-arg name="reportPrefix" ref="indexPrefix" />
-    </bean>
-
-
-    <!-- if to name elasticsearchClient with other id, there are 2 bitches created, thx to spring data... This is easiest way to solve it,
-    however there should be better one -->
-    <elasticsearch:transport-client id="elasticsearchClient" cluster-name="${org.ametiste.sns.elastic.cluster.name:elasticsearch}"
-                                    cluster-nodes="${org.ametiste.sns.elastic.client.addresses:#{defaultAddress}}" />
-
-    <!-- defaultAddress bean is made because placeholder doesnt consider a colon as part of default value, and its not advised
-    to separate host and port for different values cause cluster-node property can accept value for several nodes.
-    For example, property com.dph.sns.elastic.client.addresses replacing default can look like:
-    com.dph.sns.elastic.client.addresses=host1:9300,host2:9300
-    -->
-
-    <bean id="defaultAddress" class="java.lang.String">
-        <constructor-arg value="localhost:9300"/>
     </bean>
 
     <bean id="elasticClientExec" class="org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor" >
